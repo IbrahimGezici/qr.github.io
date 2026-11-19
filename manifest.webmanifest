@@ -3,7 +3,7 @@
   "short_name": "QR Okuyucu",
   "description": "Hızlı ve çevrimdışı çalışan QR kod okuyucu",
   "lang": "tr",
-  "start_url": "./qr-okuyucu.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

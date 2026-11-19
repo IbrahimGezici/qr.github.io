@@ -1,5 +1,5 @@
-const CACHE = "qr-okuyucu-v2";
-const SHELL = ["./qr-okuyucu.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png",
+const CACHE = "qr-okuyucu-v3";
+const SHELL = ["./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png",
   "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"];
 
 self.addEventListener("install", e => {
