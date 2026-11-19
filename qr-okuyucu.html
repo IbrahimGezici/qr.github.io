@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>QR Okuyucu</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#f8fafc;--mute:#94a3b8;--accent:#38bdf8;--ok:#10b981;--warn:#f59e0b;--bad:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;
+  padding:max(16px,env(safe-area-inset-top)) 16px calc(88px + env(safe-area-inset-bottom));min-height:100vh}
+header{width:100%;max-width:480px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+h1{font-size:1.25rem;font-weight:600;color:var(--accent)}
+#install-btn{display:none;background:var(--accent);color:var(--bg);border:0;border-radius:20px;padding:6px 14px;font-weight:600;font-size:.8rem}
+main{width:100%;max-width:480px}
+.view{display:none}.view.active{display:block}
+
+#reader-box{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,.4);min-height:260px}
+#reader{width:100%}
+#reader video{border-radius:0!important}
+#status{margin:12px 0;font-size:.85rem;color:var(--mute);text-align:center;min-height:1.2em}
+#status.err{color:var(--bad)}
+
+.tools{display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.tools.on{display:flex}
+.chip{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:22px;padding:10px 16px;
+  font-size:.9rem;font-weight:600;cursor:pointer}
+.chip.active{background:var(--warn);color:var(--bg);border-color:var(--warn)}
+.chip:active{opacity:.8}
+#zoom-wrap{display:none;width:100%;align-items:center;gap:10px;margin-bottom:10px;color:var(--mute);font-size:.8rem}
+#zoom-wrap.on{display:flex}
+#zoom{flex:1;accent-color:var(--accent)}
+
+.card{background:var(--card);border:1px solid var(--accent);border-radius:16px;padding:18px;margin-top:6px;animation:in .25s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.badge{display:inline-block;font-size:.7rem;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:12px;
+  background:var(--line);color:var(--accent);margin-bottom:10px;font-weight:700}
+.title{font-size:1.05rem;font-weight:600;margin-bottom:8px;word-break:break-word}
+.fields{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;font-size:.95rem;word-break:break-all}
+.fields div{margin-bottom:6px}.fields div:last-child{margin-bottom:0}
+.fields b{color:var(--mute);font-weight:500;font-size:.78rem;display:block}
+.warn{background:rgba(245,158,11,.12);border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:10px;font-size:.82rem;margin-bottom:12px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button,a.btn{flex:1;min-width:110px;padding:12px 14px;border:0;border-radius:10px;font-size:.92rem;font-weight:600;cursor:pointer;
+  text-align:center;text-decoration:none;display:inline-block}
+button:active,a.btn:active{opacity:.8}
+.primary{background:var(--accent);color:var(--bg)}
+.secondary{background:var(--line);color:var(--text)}
+.scan{background:var(--ok);color:var(--bg);width:100%;margin-top:10px;flex:none}
+
+.list-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.list-head h2{font-size:1.05rem}
+.link-btn{background:none;border:0;color:var(--bad);font-size:.85rem;min-width:0;flex:none;padding:6px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center}
+.item .body{flex:1;min-width:0;cursor:pointer}
+.item .t{font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .m{font-size:.72rem;color:var(--mute);margin-top:3px}
+.item .x{background:none;border:0;color:var(--mute);font-size:1.2rem;min-width:0;flex:none;padding:4px 8px}
+.empty{text-align:center;color:var(--mute);padding:40px 0;font-size:.9rem}
+
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border-radius:0;padding:14px 0;color:var(--mute);font-size:.82rem}
+nav button.active{color:var(--accent)}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000c;color:#fff;
+  padding:8px 16px;border-radius:20px;font-size:.85rem;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>QR Kod Okuyucu</h1>
+  <button id="install-btn">Yükle</button>
+</header>
+
+<main>
+  <!-- TARAMA -->
+  <section id="view-scan" class="view active">
+    <div id="reader-box"><div id="reader"></div></div>
+    <p id="status">Arka kamera başlatılıyor...</p>
+
+    <div id="tools" class="tools">
+      <button class="chip" id="torch-btn" style="display:none">🔦 Fener</button>
+      <button class="chip" id="switch-btn">🔄 Kamera</button>
+      <button class="chip" id="file-btn">🖼️ Galeriden</button>
+    </div>
+    <div id="zoom-wrap"><span>🔍</span><input type="range" id="zoom"><span id="zoom-val">1x</span></div>
+    <input type="file" id="file-input" accept="image/*" hidden>
+
+    <div id="result" class="card" style="display:none"></div>
+  </section>
+
+  <!-- GEÇMİŞ -->
+  <section id="view-history" class="view">
+    <div class="list-head"><h2>Geçmiş</h2><button class="link-btn" id="clear-btn">Tümünü sil</button></div>
+    <div id="history-list"></div>
+  </section>
+</main>
+
+<nav>
+  <button id="nav-scan" class="active">📷 Tara</button>
+  <button id="nav-history">🕘 Geçmiş</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const qr = new Html5Qrcode("reader", {
+  formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+  experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+  verbose: false
+});
+
+let facing = "environment";
+let scanning = false;
+let currentResult = null;
+const HISTORY_KEY = "qr-history-v1";
+
+/* ---------- yardımcılar ---------- */
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
+function setStatus(msg,err){const s=$("status");s.textContent=msg;s.classList.toggle("err",!!err);}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function beep(){
+  try{
+    const c=new (window.AudioContext||window.webkitAudioContext)();
+    const o=c.createOscillator(),g=c.createGain();
+    o.frequency.value=880;g.gain.value=.12;o.connect(g);g.connect(c.destination);
+    o.start();setTimeout(()=>{o.stop();c.close();},110);
+  }catch(_){}
+}
+async function copy(text){
+  try{await navigator.clipboard.writeText(text);toast("Kopyalandı");}
+  catch(_){
+    const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");toast("Kopyalandı");}catch(e){toast("Kopyalanamadı");}
+    ta.remove();
+  }
+}
+
+/* ---------- içerik çözümleme ---------- */
+function parseWifi(t){
+  const body=t.slice(5);const out={};
+  const re=/([TSPHI]):((?:\\.|[^;])*);/g;let m;
+  while((m=re.exec(body))) out[m[1]]=m[2].replace(/\\(.)/g,"$1");
+  return out;
+}
+function parseVcard(t){
+  const g=k=>{const m=t.match(new RegExp("^"+k+"[^:\\n]*:(.+)$","mi"));return m?m[1].trim():"";};
+  return {name:g("FN")||g("N").replace(/;/g," ").trim(),tel:g("TEL"),email:g("EMAIL"),org:g("ORG")};
+}
+function analyze(text){
+  const t=text.trim();
+  if(/^WIFI:/i.test(t)){const w=parseWifi(t);
+    return {type:"wifi",label:"Wi-Fi",title:w.S||"Wi-Fi ağı",fields:[["Ağ adı",w.S||"-"],["Şifre",w.P||"(yok)"],["Güvenlik",w.T||"-"]],copyValue:w.P||"",copyLabel:"Şifreyi Kopyala"};}
+  if(/^https?:\/\//i.test(t)){
+    try{const u=new URL(t);
+      const warn=[];
+      if(u.protocol==="http:")warn.push("Bu bağlantı şifrelenmemiş (http).");
+      if(/xn--/.test(u.hostname))warn.push("Alan adı özel karakterler içeriyor (taklit olabilir).");
+      if(/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname))warn.push("Bağlantı alan adı yerine IP adresi kullanıyor.");
+      return {type:"url",label:"Bağlantı",title:u.hostname,fields:[["Adres",t]],href:t,openLabel:"Bağlantıyı Aç",warn};
+    }catch(_){}
+  }
+  if(/^mailto:/i.test(t)){const a=t.slice(7).split("?")[0];return {type:"email",label:"E-posta",title:a,fields:[["Adres",a]],href:t,openLabel:"E-posta Gönder"};}
+  if(/^tel:/i.test(t)){const n=t.slice(4);return {type:"tel",label:"Telefon",title:n,fields:[["Numara",n]],href:t,openLabel:"Ara"};}
+  if(/^smsto?:/i.test(t)){const p=t.replace(/^smsto?:/i,"").split(/[:?]/);return {type:"sms",label:"SMS",title:p[0],fields:[["Numara",p[0]],["Mesaj",p.slice(1).join(" ")||"-"]],href:t.split(":").length>2?"sms:"+p[0]:t,openLabel:"SMS Aç"};}
+  if(/^geo:/i.test(t)){const c=t.slice(4).split("?")[0];return {type:"geo",label:"Konum",title:c,fields:[["Koordinat",c]],href:t,openLabel:"Haritada Aç"};}
+  if(/^BEGIN:VCARD/i.test(t)){const v=parseVcard(t);
+    const f=[["Ad",v.name||"-"]];if(v.org)f.push(["Kurum",v.org]);if(v.tel)f.push(["Telefon",v.tel]);if(v.email)f.push(["E-posta",v.email]);
+    return {type:"vcard",label:"Kişi",title:v.name||"Kişi kartı",fields:f,href:v.tel?"tel:"+v.tel:"",openLabel:"Ara"};}
+  return {type:"text",label:"Metin",title:t.length>60?t.slice(0,60)+"…":t,fields:[["İçerik",t]]};
+}
+
+/* ---------- sonuç gösterimi ---------- */
+function showResult(text){
+  currentResult=text;
+  const a=analyze(text);
+  let h=`<span class="badge">${esc(a.label)}</span><div class="title">${esc(a.title)}</div>`;
+  if(a.warn&&a.warn.length)h+=`<div class="warn">⚠️ ${a.warn.map(esc).join("<br>")}</div>`;
+  h+=`<div class="fields">${a.fields.map(([k,v])=>`<div><b>${esc(k)}</b>${esc(v)}</div>`).join("")}</div><div class="btns">`;
+  if(a.href)h+=`<a class="btn primary" href="${esc(a.href)}" ${a.type==="url"?'target="_blank" rel="noopener noreferrer"':""}>${esc(a.openLabel)}</a>`;
+  h+=`<button class="secondary" id="r-copy">${esc(a.copyLabel||"Kopyala")}</button>`;
+  if(navigator.share)h+=`<button class="secondary" id="r-share">Paylaş</button>`;
+  h+=`</div><button class="scan" id="r-again">Yeni Kod Tara</button>`;
+  const box=$("result");box.innerHTML=h;box.style.display="block";
+  $("r-copy").onclick=()=>copy(a.copyValue||text);
+  if($("r-share"))$("r-share").onclick=()=>navigator.share({text}).catch(()=>{});
+  $("r-again").onclick=startScanner;
+  box.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+/* ---------- geçmiş ---------- */
+const loadHistory=()=>{try{return JSON.parse(localStorage.getItem(HISTORY_KEY))||[];}catch(_){return [];}};
+const saveHistory=h=>{try{localStorage.setItem(HISTORY_KEY,JSON.stringify(h));}catch(_){}};
+function addHistory(text){
+  let h=loadHistory().filter(i=>i.text!==text);
+  h.unshift({text,time:Date.now()});
+  saveHistory(h.slice(0,50));
+}
+function renderHistory(){
+  const h=loadHistory(),box=$("history-list");
+  $("clear-btn").style.display=h.length?"block":"none";
+  if(!h.length){box.innerHTML='<div class="empty">Henüz taranmış kod yok.</div>';return;}
+  box.innerHTML=h.map((i,idx)=>{const a=analyze(i.text);
+    return `<div class="item"><div class="body" data-i="${idx}"><div class="t">${esc(a.title)}</div>
+    <div class="m">${esc(a.label)} · ${new Date(i.time).toLocaleString("tr-TR",{dateStyle:"short",timeStyle:"short"})}</div></div>
+    <button class="x" data-d="${idx}" aria-label="Sil">✕</button></div>`;}).join("");
+  box.querySelectorAll(".body").forEach(el=>el.onclick=()=>{
+    const it=loadHistory()[el.dataset.i];if(!it)return;
+    showView("scan");stopScanner().then(()=>{setStatus("Geçmişten açıldı.");showResult(it.text);});
+  });
+  box.querySelectorAll(".x").forEach(el=>el.onclick=()=>{
+    const hh=loadHistory();hh.splice(+el.dataset.d,1);saveHistory(hh);renderHistory();
+  });
+}
+$("clear-btn").onclick=()=>{if(confirm("Tüm geçmiş silinsin mi?")){saveHistory([]);renderHistory();}};
+
+/* ---------- görünüm ---------- */
+function showView(v){
+  document.querySelectorAll(".view").forEach(e=>e.classList.remove("active"));
+  $("view-"+v).classList.add("active");
+  $("nav-scan").classList.toggle("active",v==="scan");
+  $("nav-history").classList.toggle("active",v==="history");
+  if(v==="history"){stopScanner();renderHistory();}
+}
+$("nav-scan").onclick=()=>{showView("scan");if(!scanning&&$("result").style.display==="none")startScanner();};
+$("nav-history").onclick=()=>showView("history");
+
+/* ---------- tarayıcı ---------- */
+async function onScanSuccess(text){
+  if(!scanning)return;
+  scanning=false;
+  if(navigator.vibrate)navigator.vibrate(100);
+  beep();
+  await stopScanner(true);
+  setStatus("Tarama tamamlandı.");
+  addHistory(text);
+  showResult(text);
+}
+
+async function stopScanner(keepFlag){
+  try{if(qr.isScanning)await qr.stop();}catch(_){}
+  scanning=false;
+  $("tools").classList.remove("on");$("zoom-wrap").classList.remove("on");
+  $("torch-btn").classList.remove("active");
+}
+
+async function startScanner(){
+  $("result").style.display="none";
+  if(qr.isScanning)await stopScanner();
+  setStatus("Kamerayı QR koda doğrultun...");
+  const w=Math.min(window.innerWidth-32,480);
+  const box=Math.floor(Math.min(w*0.7,300));
+  try{
+    await qr.start({facingMode:facing},{fps:15,qrbox:{width:box,height:box},aspectRatio:1},onScanSuccess,()=>{});
+    scanning=true;
+    $("tools").classList.add("on");
+    setupCapabilities();
+  }catch(err){
+    const m=String(err);
+    if(/Permission|NotAllowed/i.test(m))setStatus("Kamera izni verilmedi. Tarayıcı ayarlarından kamerayı etkinleştirin.",true);
+    else if(/NotFound|Requested device/i.test(m))setStatus("Kamera bulunamadı.",true);
+    else if(!window.isSecureContext)setStatus("Kamera için HTTPS bağlantısı gerekiyor.",true);
+    else setStatus("Kamera başlatılamadı: "+m,true);
+    $("tools").classList.add("on");
+  }
+}
+
+function setupCapabilities(){
+  const torchBtn=$("torch-btn"),zw=$("zoom-wrap"),z=$("zoom");
+  torchBtn.style.display="none";zw.classList.remove("on");
+  try{
+    const caps=qr.getRunningTrackCameraCapabilities();
+    const torch=caps.torchFeature();
+    if(torch&&torch.isSupported()){
+      torchBtn.style.display="inline-block";
+      torchBtn.onclick=async()=>{
+        try{const on=!torch.value();await torch.apply(on);torchBtn.classList.toggle("active",on);}
+        catch(_){toast("Fener kullanılamıyor");}
+      };
+    }
+    const zoom=caps.zoomFeature();
+    if(zoom&&zoom.isSupported()){
+      z.min=zoom.min();z.max=zoom.max();z.step=zoom.step()||0.1;z.value=zoom.value()||zoom.min();
+      $("zoom-val").textContent=(+z.value).toFixed(1)+"x";
+      z.oninput=()=>{zoom.apply(+z.value).catch(()=>{});$("zoom-val").textContent=(+z.value).toFixed(1)+"x";};
+      zw.classList.add("on");
+    }
+  }catch(_){}
+}
+
+$("switch-btn").onclick=()=>{facing=facing==="environment"?"user":"environment";startScanner();};
+$("file-btn").onclick=()=>$("file-input").click();
+$("file-input").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  await stopScanner();
+  setStatus("Görsel okunuyor...");
+  try{
+    const text=await qr.scanFile(f,false);
+    if(navigator.vibrate)navigator.vibrate(100);beep();
+    setStatus("Görselden okundu.");addHistory(text);showResult(text);
+  }catch(_){
+    setStatus("Görselde QR kod bulunamadı.",true);
+    setTimeout(startScanner,1800);
+  }
+};
+
+/* Arka plana geçince kamerayı kapat, dönünce aç */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){if(scanning)stopScanner().then(()=>{window._resume=true;});}
+  else if(window._resume&&$("view-scan").classList.contains("active")){window._resume=false;startScanner();}
+});
+
+/* ---------- PWA ---------- */
+let deferred;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;$("install-btn").style.display="block";});
+$("install-btn").onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$("install-btn").style.display="none";};
+window.addEventListener("appinstalled",()=>{$("install-btn").style.display="none";});
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+
+window.addEventListener("load",startScanner);
+</script>
+</body>
+</html>
